@@ -8,10 +8,10 @@ import tempfile
 import os
 from dotenv import load_dotenv
 from io import BytesIO
-Model = tf.keras.models.Model
-VGG16 = tf.keras.applications.VGG16
+
 # Disable GPU usage
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
+
 load_dotenv()
 
 DB_NAME = os.getenv("DB_NAME")
@@ -22,10 +22,12 @@ DB_PORT = os.getenv("DB_PORT")
 
 app = FastAPI()
 
-base_model = VGG16(weights='imagenet', include_top=False)  # Exclude fully connected layers
-model = Model(inputs=base_model.input, outputs=base_model.get_layer('block5_pool').output)
+# Using MobileNetV2 instead of VGG16
+base_model = tf.keras.applications.MobileNetV2(weights='imagenet', include_top=False)  # Exclude fully connected layers
+model = tf.keras.models.Model(inputs=base_model.input, outputs=base_model.output)
 
-preprocess_input = tf.keras.applications.vgg16.preprocess_input
+# Use MobileNetV2's preprocess_input function
+preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
 
 def get_db_connection():
     return psycopg2.connect(
@@ -50,7 +52,7 @@ def extract_frames_from_bytes(video_bytes, frame_interval=1):
         if not ret:
             break
         if count % frame_interval == 0:
-            frame = cv2.resize(frame, (224, 224))
+            frame = cv2.resize(frame, (224, 224))  # MobileNetV2's input size
             frames.append(frame)
         count += 1
 
@@ -98,7 +100,6 @@ def get_all_feature_vectors():
         feature_vectors.append((video_id, reshaped_vector))
 
     return feature_vectors
-
 
 def insert_new_feature_vector(feature_matrix):
     flattened_vector = feature_matrix.flatten().tolist()
