@@ -147,7 +147,8 @@ async def compare_video(file: UploadFile = File(...)):
         # Compare and insert if necessary
         video_id, max_similarity = compare_with_fixed_vector(features_fixed)
 
-        return {"video_id": video_id, "max_similarity": max_similarity}
+        # Convert numpy.float32 to native Python float before returning
+        return {"video_id": video_id, "max_similarity": float(max_similarity)}
 
     except Exception as e:
         # More detailed error logging
