@@ -8,17 +8,13 @@ import tempfile
 import os
 from dotenv import load_dotenv
 from io import BytesIO
+from urllib.parse import urlparse
 
 # Disable GPU usage
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Disable GPU
 
 load_dotenv()
 
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
 
 app = FastAPI()
 
@@ -30,13 +26,22 @@ model = tf.keras.models.Model(inputs=base_model.input, outputs=base_model.output
 preprocess_input = tf.keras.applications.mobilenet_v2.preprocess_input
 
 def get_db_connection():
-    return psycopg2.connect(
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        host=DB_HOST,
-        port=DB_PORT
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise Exception("DATABASE_URL not set in environment variables")
+
+    # Parse the database URL
+    url_parts = urlparse(db_url)
+    
+    # Connect using parsed components
+    conn = psycopg2.connect(
+        dbname=url_parts.path[1:],  # Remove leading slash
+        user=url_parts.username,
+        password=url_parts.password,
+        host=url_parts.hostname,
+        port=url_parts.port
     )
+    return conn
 
 def extract_frames_from_bytes(video_bytes, frame_interval=1):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video:
